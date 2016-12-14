@@ -39,27 +39,47 @@ check_status(ACCESS_WEBMASTER);
 if (isset($_POST['submit']))
 {
   $file_sums = dirname(__FILE__).'/data/piwigo-'.PHPWG_VERSION.'-sums.txt';
-  
-  $lines = file($file_sums);
 
-  foreach ($lines as $line)
+  if (!is_file($file_sums))
   {
-    list($sum_ref, $relative_path) = explode(' ', trim($line));
+    $page['errors'][] = 'unsupported version of Piwigo';
+  }
+  else
+  {
+    $starttime = get_moment();
+    $lines = file($file_sums);
 
-    $fullpath = './'.$relative_path;
-
-    if (!is_file($fullpath))
+    foreach ($lines as $line)
     {
-      array_push($page['errors'], $relative_path.' is missing');
-      continue;
+      list($sum_ref, $relative_path) = explode(' ', trim($line));
+
+      $fullpath = './'.$relative_path;
+
+      if (!is_file($fullpath))
+      {
+        array_push($page['errors'], $relative_path.' is missing');
+        continue;
+      }
+
+      $sum_local = sha1(file_get_contents($fullpath));
+
+      if ($sum_local != $sum_ref)
+      {
+        array_push($page['errors'], $relative_path.' has been modified');
+      }
     }
 
-    $sum_local = sha1(file_get_contents($fullpath));
-
-    if ($sum_local != $sum_ref)
-    {
-      array_push($page['errors'], $relative_path.' has been modified');
-    }
+    $endtime = get_moment();
+    $elapsed = ($endtime - $starttime);
+    array_push(
+      $page['infos'],
+      sprintf(
+        'Piwigo %s, %u files scanned in %.3f seconds',
+        PHPWG_VERSION,
+        count($lines),
+        $elapsed
+        )
+      );
   }
 
   if (count($page['errors']) == 0)
